@@ -28,6 +28,7 @@ async function run() {
     const db = client.db('hireLoop-user')
     const jobCollection = db.collection('hireloop-jobs');
     const companyCollection = db.collection('company-collection')
+    const recruiterCollection = db.collection('user')
 
     app.get('/', (req, res) => {
       res.send('hireLoop server is running')
@@ -49,21 +50,47 @@ async function run() {
 
     app.post('/api/jobs', async (req, res) => {
       const job = req.body;
-      console.log("Received:", job);
-      const result = await jobCollection.insertOne(job);
+      const newJob = {
+        ...job,
+        createdAt: new Date()
+      }
+      console.log("Received:", newJob);
+      const result = await jobCollection.insertOne(newJob);
       res.json({ insertedId: result.insertedId.toString() })
     })
 
     // company data saving
   app.post('/api/companies', async (req, res) => {
-    const company = req.body
-    console.log(company, 'company data processed')
-    const result = await companyCollection.insertOne(company)
+    const company = req.body;
+    const newCompany = {
+      ...company,
+      createdAt: new Date()
+    }
+    console.log(newCompany, 'company data processed')
+    const result = await companyCollection.insertOne(newCompany)
     res.json({insertedId: result.insertedId.toString()})
   })
 
-  // company data fetching with recruiter ID
+  // all recruiter data fetching
+  app.get('/api/allRecruiter', async (req, res) => {
+    const result = await recruiterCollection.find().toArray()
+    res.json(result)
+  })
 
+  
+  // all company data fetching
+  app.get('/api/companies', async (req, res) => {
+    const result = await companyCollection.find().toArray()
+    res.json(result)
+  })
+
+ // all jobs data fetching
+  app.get('/api/jobs', async (req, res) => {
+    const result = await jobCollection.find().toArray()
+    res.json(result)
+  })
+
+  // company data fetching with recruiter ID
   app.get('/api/myCompany', async (req, res) => {
     const query = {}
     if(req.query.recruiterId){
