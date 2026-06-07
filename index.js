@@ -90,6 +90,15 @@ async function run() {
     res.json(result)
   })
 
+  // job details data fetching
+  app.get('/api/jobs/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = {_id : new ObjectId(id)}
+    const result = await jobCollection.findOne(query)
+    res.json(result)
+    
+  })
+
   // company data fetching with recruiter ID
   app.get('/api/myCompany', async (req, res) => {
     const query = {}
