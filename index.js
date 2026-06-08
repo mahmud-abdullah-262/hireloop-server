@@ -29,11 +29,13 @@ async function run() {
     const jobCollection = db.collection('hireloop-jobs');
     const companyCollection = db.collection('company-collection')
     const recruiterCollection = db.collection('user')
+    const applicationCollection = db.collection('application-collection')
 
     app.get('/', (req, res) => {
       res.send('hireLoop server is running')
     })
-
+ 
+    // jobs fetching by company ID
     app.get('/api/jobs', async (req, res) => {
       const query = {};
       if(req.query.companyId){
@@ -48,6 +50,7 @@ async function run() {
     }
 )
 
+// job posting 
     app.post('/api/jobs', async (req, res) => {
       const job = req.body;
       const newJob = {
@@ -109,7 +112,7 @@ async function run() {
     res.json(result)
   })
 
-
+  // company data update
   app.patch('/api/myCompany/:id', async (req, res) => {
   const { id } = req.params;
   const updatedData = req.body;
@@ -126,6 +129,34 @@ async function run() {
 
   res.json(result);
 });
+
+// application post 
+
+app.post('/api/applications', async (req, res) => {
+  const application = req.body;
+      const newApplication = {
+        ...application,
+        createdAt: new Date()
+      }
+      console.log("Received:", newApplication);
+      const result = await applicationCollection.insertOne(newApplication);
+      res.json({ insertedId: result.insertedId.toString() })
+} )
+
+// applications get by applicant id and job id separately
+app.get(`/api/applications`, async (req, res) =>{
+  const query = {};
+  if(req.query.applicantId){
+    query.applicantId = req.query.applicantId;
+  }
+  if(req.query.jobId){
+    query.jobId = req.query.jobId
+  }
+
+  const result = await applicationCollection.find(query).toArray();
+  res.json(result)
+
+})
 
 
   } catch(err) {
