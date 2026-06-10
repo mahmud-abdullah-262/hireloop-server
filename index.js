@@ -28,8 +28,10 @@ async function run() {
     const db = client.db('hireLoop-user')
     const jobCollection = db.collection('hireloop-jobs');
     const companyCollection = db.collection('company-collection')
-    const recruiterCollection = db.collection('user')
+    const userCollection = db.collection('user')
     const applicationCollection = db.collection('application-collection')
+    const plansCollection = db.collection('plans')
+    const subscriptionCollection = db.collection('subscription_collection')
 
     app.get('/', (req, res) => {
       res.send('hireLoop server is running')
@@ -76,7 +78,7 @@ async function run() {
 
   // all recruiter data fetching
   app.get('/api/allRecruiter', async (req, res) => {
-    const result = await recruiterCollection.find().toArray()
+    const result = await userCollection.find().toArray()
     res.json(result)
   })
 
@@ -157,6 +159,39 @@ app.get(`/api/applications`, async (req, res) =>{
   res.json(result)
 
 })
+
+//  plans data fetching
+app.get('/api/plans', async (req, res) => {
+  const query = {}
+  if(req.query.planId){
+    query.planId = req.query.planId
+  }
+  const result = await plansCollection.findOne(query)
+   res.json(result)
+})
+
+  // subscription handle
+  app.post('/api/subscription', async (req, res) => {
+    const data = req.body;
+    const subInfo = {
+      ...data,
+      createdAt: new Date()
+    }
+    const result = await subscriptionCollection.insertOne(subInfo)
+
+
+    // update user data
+    const filter = {email: data.email}
+
+    const updateDocument = {
+      $set: {
+        plan: data.planId
+      }
+    }
+    const updateResult = userCollection.updateOne(filter, updateDocument)
+
+    res.json(updateResult)
+  })
 
 
   } catch(err) {
