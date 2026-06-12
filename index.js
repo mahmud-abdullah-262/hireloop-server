@@ -193,6 +193,22 @@ app.get('/api/plans', async (req, res) => {
     res.json(updateResult)
   })
 
+  // company approving 
+  app.patch('/api/companies/:id', async (req, res) => {
+       console.log('patch hit', req.params.id, req.body)
+    const id = req.params.id;
+    const filter = {_id : new ObjectId(id)}
+    const updateCompany = req.body
+    const updateDoc = {
+      $set: {status : updateCompany.status}
+    }
+    const result = await companyCollection.updateOne(filter, updateDoc)
+       if (result.modifiedCount > 0) {
+        res.json({ success: true, message: 'Status updated' })
+    } else {
+        res.status(404).json({ success: false, message: 'Company not found' })
+    }
+  })
 
   } catch(err) {
     console.error(err);
