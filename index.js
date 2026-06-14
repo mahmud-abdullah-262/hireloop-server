@@ -19,19 +19,7 @@ const client = new MongoClient(uri, {
 app.use(cors())
 app.use(express.json())
 
-const verifyToken = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if(!authHeader){
-    return res.status(401).send({message: 'Unauthorized access'})
-  }
-  const token = authHeader.split(' ')[1]
-   if(!token){
-    return res.status(401).send({message: 'Unauthorized access'})
-  }
 
-  console.log(authHeader,'auth header', token, 'token' )
-next()
-}
 
 
 async function run() {
@@ -64,6 +52,10 @@ async function run() {
 
   const query = {token: token}
   const session = await sessionCollection.findOne(query)
+
+  if(!session) {
+      return res.status(403).send({message: 'forbidden'})
+  }
   const userQuery = {_id : session.userId}
   const user = await userCollection.findOne(userQuery)
   req.user = user
@@ -87,10 +79,13 @@ const verifyRecruiter = async (req, res, next) => {
 }
 
 const verifyAdmin = async (req, res, next) => {
+     
   const user = req.user
   if(user.role !== 'admin'){
+  
     return res.status(403).send({message: 'forbidden'})
   }
+ 
   next()
 }
 
@@ -98,6 +93,18 @@ const verifyAdmin = async (req, res, next) => {
       res.send('hireLoop server is running')
     })
  
+    // all jobs data fetching
+    app.get('/api/jobs', async (req, res) => {
+  try {
+    const result = await jobCollection.find().toArray();
+    res.json(result);
+  } catch (err) {
+    console.error(err); // terminal এ exact error দেখাবে
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
     // jobs fetching by company ID
     app.get('/api/jobs', verifyToken, verifyRecruiter, async (req, res) => {
     
@@ -163,6 +170,7 @@ app.get('/api/companies', verifyToken, async (req, res) => {
   const result = await companyCollection.aggregate(pipeline).toArray()
   res.json(result)
 })
+
 
   // job details data fetching
   app.get('/api/jobs/:id', async (req, res) => {
