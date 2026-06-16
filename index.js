@@ -96,8 +96,27 @@ const verifyAdmin = async (req, res, next) => {
     // all jobs data fetching
     app.get('/api/jobs', async (req, res) => {
   try {
-    const result = await jobCollection.find().toArray();
+    console.log(req.query, 'search params') // ক্লায়েন্ট সাইড থেকে আসা সার্চ অবজেক্ট কুয়েরির মধ্যে সেট করা হয়েছিল, সেটা এখান থেকে দেখা যাচ্ছে।
+    const query = {}
+
+    // ফিল্টারিং
+     if(req.query.title){
+      query.title = { $regex: req.query.title, $options: 'i' }; // রেগুলার এক্সপ্রেশন দিয়ে আংশিক অক্ষর দিয়ে সার্চ দিচ্ছি, অপশনে i মানে ইগনোর কেস। এগুলো মঙ্গোডিবি থেকে আসছে
+    }
+    if(req.query.type){
+      query.type = req.query.type
+    }
+    if(req.query.category){
+      query.category = req.query.category
+    }
+   if(req.query.isRemote !== undefined && req.query.isRemote !== ''){
+      query.isRemote = (req.query.isRemote === 'true')
+    }
+ 
+    const result = await jobCollection.find(query).toArray();
+ 
     res.json(result);
+
   } catch (err) {
     console.error(err); // terminal এ exact error দেখাবে
     res.status(500).json({ error: err.message });
