@@ -101,7 +101,14 @@ const verifyAdmin = async (req, res, next) => {
 
     // ফিল্টারিং
      if(req.query.title){
-      query.title = { $regex: req.query.title, $options: 'i' }; // রেগুলার এক্সপ্রেশন দিয়ে আংশিক অক্ষর দিয়ে সার্চ দিচ্ছি, অপশনে i মানে ইগনোর কেস। এগুলো মঙ্গোডিবি থেকে আসছে
+      query.$or =[ 
+        {title:{$regex: req.query.title, $options: 'i'}  },
+         {responsibilities:{$regex: req.query.title, $options: 'i'}  },
+         {requirements:{$regex: req.query.title, $options: 'i'}  },
+         {benefits:{$regex: req.query.title, $options: 'i'}  },
+         {company:{$regex: req.query.title, $options: 'i'}  },
+
+      ] // or অপারেটর দিয়ে একাধিক ফিল্ডে সার্চ করছি। রেগুলার এক্সপ্রেশন দিয়ে আংশিক অক্ষর দিয়ে সার্চ দিচ্ছি, অপশনে i মানে ইগনোর কেস। এগুলো মঙ্গোডিবি থেকে আসছে
     }
     if(req.query.type){
       query.type = req.query.type
@@ -112,9 +119,10 @@ const verifyAdmin = async (req, res, next) => {
    if(req.query.isRemote !== undefined && req.query.isRemote !== ''){
       query.isRemote = (req.query.isRemote === 'true')
     }
+
+  
  
     const result = await jobCollection.find(query).toArray();
- 
     res.json(result);
 
   } catch (err) {
@@ -181,14 +189,39 @@ const verifyAdmin = async (req, res, next) => {
   })
 
   
-  // all company data fetching
+// all company data fetching
 app.get('/api/companies', verifyToken, async (req, res) => {
-  const pipeline = [
-    { $skip: 0 }
-  ]
-  const result = await companyCollection.aggregate(pipeline).toArray()
-  res.json(result)
-})
+  try {
+    const search = req.query.search ? req.query.search.trim() : '';
+
+    // পাইপলাইনের শুরুতে একটি খালি অ্যারে রাখছি
+    const pipeline = [];
+
+    // যদি সার্চ কুয়েরি থাকে, তবেই ফিল্টারিং পাইপলাইন যোগ হবে
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { category: { $regex: search, $options: 'i' } },
+            { location: { $regex: search, $options: 'i' } }
+          ]
+        }
+      });
+    }
+
+    // আপনার আগের $skip স্টেপ (প্রয়োজন হলে রাখতে পারেন)
+    pipeline.push({ $skip: 0 });
+
+    const result = await companyCollection.aggregate(pipeline).toArray();
+    console.log(result, 'result');
+    res.json(result);
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 
   // job details data fetching
@@ -200,23 +233,34 @@ app.get('/api/companies', verifyToken, async (req, res) => {
     
   })
 
-  // company data fetching with recruiter ID
-  app.get('/api/myCompany', verifyToken, verifyRecruiter, async (req, res) => {
+// company data fetching with recruiter ID
+app.get('/api/myCompany', verifyToken, verifyRecruiter, async (req, res) => {
+  try {
+    const recruiterId = req.query.recruiterId;
 
-  
- // verification 
-      if(req.user._id.toString() !== req.query.recruiterId){
-        return res.status(403).send({message: 'forbidden'})
-      }
-
-
-    const query = {}
-    if(req.query.recruiterId){
-      query.recruiterId = req.query.recruiterId;
+    // ১. ভেরিফিকেশন (আইডি না থাকলে বা ম্যাচ না করলে)
+    if (!recruiterId || req.user._id.toString() !== recruiterId) {
+      return res.status(403).json({ message: 'Forbidden access' });
     }
+
+    const query = { recruiterId: recruiterId };
     const result = await companyCollection.findOne(query);
-    res.json(result)
-  })
+
+    // ২. ডেটাবেজে যদি কোম্পানি খুঁজে পাওয়া না যায়
+    if (!result) {
+      return res.status(404).json({ message: 'Company not found' });
+    }
+
+    // ৩. সাকসেস রেসপন্স
+    console.log(result, 'company id by recruiter id');
+    return res.json(result);
+
+  } catch (error) {
+    // ৪. কোনো ইন্টারনাল এরর হলে সার্ভার ক্রাশ করবে না, এখান থেকে হ্যান্ডেল হবে
+    console.error("Database error:", error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
 
   // company data update
   app.patch('/api/myCompany/:id', async (req, res) => {
