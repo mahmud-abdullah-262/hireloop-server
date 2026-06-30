@@ -97,6 +97,12 @@ const verifyAdmin = async (req, res, next) => {
     app.get('/api/jobs', async (req, res) => {
   try {
     console.log(req.query, 'search params') // ক্লায়েন্ট সাইড থেকে আসা সার্চ অবজেক্ট কুয়েরির মধ্যে সেট করা হয়েছিল, সেটা এখান থেকে দেখা যাচ্ছে।
+
+     const page = req.query.page || 1 // পেজ নাম্বার যেটা এসেছে নিয়ে নিলাম
+    const size = 6// প্রতি পেজে কতগুলো ডাটা দেখাব ঠিক করে দিচ্ছি
+
+
+
     const query = {}
 
     // ফিল্টারিং
@@ -122,8 +128,17 @@ const verifyAdmin = async (req, res, next) => {
 
   
  
-    const result = await jobCollection.find(query).toArray();
-    res.json(result);
+    const totalJobs = await jobCollection.find(query).toArray();
+    const skipCount = (page - 1) * size // প্রতি পেজে কয়টি ডাটা বাদ দিবে সেই ফর্মুলা
+
+    const cursor =  jobCollection.find(query).skip(skipCount).limit(size) // নির্দিষ্ট পরিমাণ ডাটা বাদ দিয়ে, যতটুকু দরকার ততটুকু নিলাম
+    const result = await cursor.toArray() // রেজাল্টটা এরেতে কনভার্ট করলাম।
+
+    res.json({
+      totalJobs,
+      result, 
+      size
+    });
 
   } catch (err) {
     console.error(err); // terminal এ exact error দেখাবে
@@ -192,30 +207,33 @@ const verifyAdmin = async (req, res, next) => {
 // all company data fetching
 app.get('/api/companies', verifyToken, async (req, res) => {
   try {
-    const search = req.query.search ? req.query.search.trim() : '';
+    const search = req.query
+    const page = req.query.page || 1
+    const size = 6
 
-    // পাইপলাইনের শুরুতে একটি খালি অ্যারে রাখছি
-    const pipeline = [];
+    console.log(search, page, 'search')
+    const query = {}
+    if(req.query.search){
+      query.$or =[ 
+        {companyName:{$regex: req.query.search, $options: 'i'}  },
+         {category:{$regex: req.query.search, $options: 'i'}  },
+         {location:{$regex: req.query.search, $options: 'i'}  },
+        
 
-    // যদি সার্চ কুয়েরি থাকে, তবেই ফিল্টারিং পাইপলাইন যোগ হবে
-    if (search) {
-      pipeline.push({
-        $match: {
-          $or: [
-            { name: { $regex: search, $options: 'i' } },
-            { category: { $regex: search, $options: 'i' } },
-            { location: { $regex: search, $options: 'i' } }
-          ]
-        }
-      });
+      ] // or অপারেটর দিয়ে একাধিক ফিল্ডে সার্চ করছি। রেগুলার এক্সপ্রেশন দিয়ে আংশিক অক্ষর দিয়ে সার্চ দিচ্ছি, অপশনে i মানে ইগনোর কেস। এগুলো মঙ্গোডিবি থেকে আসছে
     }
+   
 
-    // আপনার আগের $skip স্টেপ (প্রয়োজন হলে রাখতে পারেন)
-    pipeline.push({ $skip: 0 });
+    const totalCompany = await companyCollection.find(query).toArray();
+    const skipCount = (page - 1) * size
 
-    const result = await companyCollection.aggregate(pipeline).toArray();
-    console.log(result, 'result');
-    res.json(result);
+    const cursor =  companyCollection.find(query).skip(skipCount).limit(size)
+    const result = await cursor.toArray()
+    res.json({
+      totalCompany,
+      size,
+      result
+    });
     
   } catch (error) {
     console.error(error);
