@@ -93,6 +93,10 @@ const verifyAdmin = async (req, res, next) => {
       res.send('hireLoop server is running')
     })
  
+
+    // ===================== get functions
+
+
     // all jobs data fetching
     app.get('/api/jobs', async (req, res) => {
   try {
@@ -173,29 +177,6 @@ const verifyAdmin = async (req, res, next) => {
     }
 )
 
-// job posting 
-    app.post('/api/jobs', verifyToken, verifyRecruiter, async (req, res) => {
-      const job = req.body;
-      const newJob = {
-        ...job,
-        createdAt: new Date()
-      }
-      console.log("Received:", newJob);
-      const result = await jobCollection.insertOne(newJob);
-      res.json({ insertedId: result.insertedId.toString() })
-    })
-
-    // company data saving
-  app.post('/api/companies', async (req, res) => {
-    const company = req.body;
-    const newCompany = {
-      ...company,
-      createdAt: new Date()
-    }
-    console.log(newCompany, 'company data processed')
-    const result = await companyCollection.insertOne(newCompany)
-    res.json({insertedId: result.insertedId.toString()})
-  })
 
   // all recruiter data fetching
   app.get('/api/allRecruiter', async (req, res) => {
@@ -203,46 +184,7 @@ const verifyAdmin = async (req, res, next) => {
     res.json(result)
   })
 
-  
-// all company data fetching
-app.get('/api/companies', verifyToken, async (req, res) => {
-  try {
-    const search = req.query
-    const page = req.query.page || 1
-    const size = 6
-
-    console.log(search, page, 'search')
-    const query = {}
-    if(req.query.search){
-      query.$or =[ 
-        {companyName:{$regex: req.query.search, $options: 'i'}  },
-         {category:{$regex: req.query.search, $options: 'i'}  },
-         {location:{$regex: req.query.search, $options: 'i'}  },
-        
-
-      ] // or অপারেটর দিয়ে একাধিক ফিল্ডে সার্চ করছি। রেগুলার এক্সপ্রেশন দিয়ে আংশিক অক্ষর দিয়ে সার্চ দিচ্ছি, অপশনে i মানে ইগনোর কেস। এগুলো মঙ্গোডিবি থেকে আসছে
-    }
-   
-
-    const totalCompany = await companyCollection.find(query).toArray();
-    const skipCount = (page - 1) * size
-
-    const cursor =  companyCollection.find(query).skip(skipCount).limit(size)
-    const result = await cursor.toArray()
-    res.json({
-      totalCompany,
-      size,
-      result
-    });
-    
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-
-  // job details data fetching
+   // job details data fetching
   app.get('/api/jobs/:id', async (req, res) => {
     const id = req.params.id;
     const query = {_id : new ObjectId(id)}
@@ -280,38 +222,42 @@ app.get('/api/myCompany', verifyToken, verifyRecruiter, async (req, res) => {
   }
 });
 
-  // company data update
-  app.patch('/api/myCompany/:id', async (req, res) => {
-  const { id } = req.params;
+// all company data fetching
+app.get('/api/companies', verifyToken, async (req, res) => {
+  try {
+    const search = req.query
+    const page = req.query.page || 1
+    const size = 6
 
-  
-  const updatedData = req.body;
-  console.log(id, 'id', updatedData, "updatedData")
+    console.log(search, page, 'search')
+    const query = {}
+    if(req.query.search){
+      query.$or =[ 
+        {companyName:{$regex: req.query.search, $options: 'i'}  },
+         {category:{$regex: req.query.search, $options: 'i'}  },
+         {location:{$regex: req.query.search, $options: 'i'}  },
+        
 
-  // _id বা recruiterId যেন update না হয়
-  delete updatedData._id;
-  delete updatedData.recruiterId;
+      ] // or অপারেটর দিয়ে একাধিক ফিল্ডে সার্চ করছি। রেগুলার এক্সপ্রেশন দিয়ে আংশিক অক্ষর দিয়ে সার্চ দিচ্ছি, অপশনে i মানে ইগনোর কেস। এগুলো মঙ্গোডিবি থেকে আসছে
+    }
+   
 
-  const result = await companyCollection.updateOne(
-    { _id: new ObjectId(id) },
-    { $set: updatedData }
-  );
+    const totalCompany = await companyCollection.find(query).toArray();
+    const skipCount = (page - 1) * size
 
-  res.json(result);
+    const cursor =  companyCollection.find(query).skip(skipCount).limit(size)
+    const result = await cursor.toArray()
+    res.json({
+      totalCompany,
+      size,
+      result
+    });
+    
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
-
-// application post 
-
-app.post('/api/applications', async (req, res) => {
-  const application = req.body;
-      const newApplication = {
-        ...application,
-        createdAt: new Date()
-      }
-      console.log("Received:", newApplication);
-      const result = await applicationCollection.insertOne(newApplication);
-      res.json({ insertedId: result.insertedId.toString() })
-} )
 
 // applications get by applicant id and job id separately
 app.get(`/api/applications`, verifyToken, verifySeeker, async (req, res) =>{
@@ -341,6 +287,47 @@ app.get('/api/plans', async (req, res) => {
    res.json(result)
 })
 
+
+
+
+  // ================== post functions
+// job posting 
+    app.post('/api/jobs', verifyToken, verifyRecruiter, async (req, res) => {
+      const job = req.body;
+      const newJob = {
+        ...job,
+        createdAt: new Date()
+      }
+      console.log("Received:", newJob);
+      const result = await jobCollection.insertOne(newJob);
+      res.json({ insertedId: result.insertedId.toString() })
+    })
+
+    // company data saving
+  app.post('/api/companies', async (req, res) => {
+    const company = req.body;
+    const newCompany = {
+      ...company,
+      createdAt: new Date()
+    }
+    console.log(newCompany, 'company data processed')
+    const result = await companyCollection.insertOne(newCompany)
+    res.json({insertedId: result.insertedId.toString()})
+  })
+
+  // application post 
+app.post('/api/applications', async (req, res) => {
+  const application = req.body;
+      const newApplication = {
+        ...application,
+        createdAt: new Date()
+      }
+      console.log("Received:", newApplication);
+      const result = await applicationCollection.insertOne(newApplication);
+      res.json({ insertedId: result.insertedId.toString() })
+} )
+
+
   // subscription handle
   app.post('/api/subscription', async (req, res) => {
     const data = req.body;
@@ -364,6 +351,37 @@ app.get('/api/plans', async (req, res) => {
     res.json(updateResult)
   })
 
+
+
+
+
+
+  
+
+
+
+ 
+// =================== patch functions
+  // company data update
+  app.patch('/api/myCompany/:id', async (req, res) => {
+  const { id } = req.params;
+
+  
+  const updatedData = req.body;
+  console.log(id, 'id', updatedData, "updatedData")
+
+  // _id বা recruiterId যেন update না হয়
+  delete updatedData._id;
+  delete updatedData.recruiterId;
+
+  const result = await companyCollection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: updatedData }
+  );
+
+  res.json(result);
+});
+
   // company approving 
   app.patch('/api/companies/:id', verifyToken, verifyAdmin, async (req, res) => {
        console.log('patch hit', req.params.id, req.body)
@@ -380,6 +398,75 @@ app.get('/api/plans', async (req, res) => {
         res.status(403).json({ success: false, message: 'Company not found' })
     }
   })
+
+ app.patch('/api/userProfile/', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const id = req.query.id;
+        console.log('functions called', id)
+        if (!id) {
+            return res.status(400).json({ message: 'User ID missing' }); // ৪৪ এর বদলে ৪০০ (Bad Request) দেওয়া ভালো
+        }
+
+        // রিকোয়েস্ট বডি থেকে স্ট্যাটাস নেওয়া হচ্ছে
+        const { status } = req.body;
+        if (!status) {
+            return res.status(400).json({ message: 'Status is required in request body' });
+        }
+
+        // আইডি অনুযায়ী ইউজার খুঁজে আপডেট বা নতুন ফিল্ড তৈরি করা হচ্ছে
+        const filter = { _id: new ObjectId(id)}; // আপনি যদি Mongoose ব্যবহার করেন, তবে আইডি ভেদে ObjectId(id) লাগতে পারে
+        const updateDoc = {
+            $set: { status: status }
+        };
+
+        const result = await userCollection.updateOne(filter, updateDoc);
+
+        // যদি কোনো ডকুমেন্ট ম্যাচ না করে (অর্থাৎ এই আইডির কেউ নেই)
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({ message: `User status successfully updated to ${status}` });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: " Internal server error" });
+    }
+});
+
+
+// ================ delete functions
+ app.delete('/api/userProfile/', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const id = req.query.id;
+        console.log('functions called', id)
+        if (!id) {
+            return res.status(400).json({ message: 'User ID missing' }); // ৪৪ এর বদলে ৪০০ (Bad Request) দেওয়া ভালো
+        }
+
+       
+
+        // আইডি অনুযায়ী ইউজার খুঁজে আপডেট বা নতুন ফিল্ড তৈরি করা হচ্ছে
+        const filter = { _id: new ObjectId(id)}; // আপনি যদি Mongoose ব্যবহার করেন, তবে আইডি ভেদে ObjectId(id) লাগতে পারে
+       
+
+        const result = await userCollection.deleteOne(filter);
+
+        // যদি কোনো ডকুমেন্ট ম্যাচ না করে (অর্থাৎ এই আইডির কেউ নেই)
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({ message: `User successfully Deleted` });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: " Internal server error" });
+    }
+});
+
+
+
 
   } catch(err) {
     console.error(err);
