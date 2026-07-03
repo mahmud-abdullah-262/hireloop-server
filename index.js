@@ -103,7 +103,7 @@ const verifyAdmin = async (req, res, next) => {
     console.log(req.query, 'search params') // ক্লায়েন্ট সাইড থেকে আসা সার্চ অবজেক্ট কুয়েরির মধ্যে সেট করা হয়েছিল, সেটা এখান থেকে দেখা যাচ্ছে।
 
      const page = req.query.page || 1 // পেজ নাম্বার যেটা এসেছে নিয়ে নিলাম
-    const size = 6// প্রতি পেজে কতগুলো ডাটা দেখাব ঠিক করে দিচ্ছি
+    const size = 12// প্রতি পেজে কতগুলো ডাটা দেখাব ঠিক করে দিচ্ছি
 
 
 
@@ -453,21 +453,53 @@ app.post('/api/applications', async (req, res) => {
 
 
 // ================ delete functions
+
+// delete user profile by admin
  app.delete('/api/userProfile/', verifyToken, verifyAdmin, async (req, res) => {
     try {
         const id = req.query.id;
         console.log('functions called', id)
         if (!id) {
-            return res.status(400).json({ message: 'User ID missing' }); // ৪৪ এর বদলে ৪০০ (Bad Request) দেওয়া ভালো
+            return res.status(400).json({ message: 'User ID missing' }); 
         }
 
        
 
         // আইডি অনুযায়ী ইউজার খুঁজে আপডেট বা নতুন ফিল্ড তৈরি করা হচ্ছে
-        const filter = { _id: new ObjectId(id)}; // আপনি যদি Mongoose ব্যবহার করেন, তবে আইডি ভেদে ObjectId(id) লাগতে পারে
+        const filter = { _id: new ObjectId(id)}; 
        
 
         const result = await userCollection.deleteOne(filter);
+
+        // যদি কোনো ডকুমেন্ট ম্যাচ না করে (অর্থাৎ এই আইডির কেউ নেই)
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({ message: `User successfully Deleted` });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: " Internal server error" });
+    }
+});
+
+// delete job by admin
+ app.delete('/api/jobs/', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const id = req.query.id;
+        console.log('functions called', id)
+        if (!id) {
+            return res.status(400).json({ message: 'User ID missing' }); 
+        }
+
+       
+
+        // আইডি অনুযায়ী ইউজার খুঁজে আপডেট বা নতুন ফিল্ড তৈরি করা হচ্ছে
+        const filter = { _id: new ObjectId(id)}; 
+       
+
+        const result = await jobCollection.deleteOne(filter);
 
         // যদি কোনো ডকুমেন্ট ম্যাচ না করে (অর্থাৎ এই আইডির কেউ নেই)
         if (result.matchedCount === 0) {
