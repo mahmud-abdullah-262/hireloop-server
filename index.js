@@ -434,6 +434,23 @@ app.post('/api/applications', async (req, res) => {
     }
 });
 
+// job data update
+  app.patch('/api/jobs/:id', async (req, res) => {
+  const { id } = req.params;
+    console.log(id, 'server check')
+  
+  const updatedData = req.body;
+  console.log(id, 'id', updatedData, "updatedData")
+
+
+  const result = await jobCollection.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: updatedData }
+  );
+
+  res.json(result);
+});
+
 
 // ================ delete functions
  app.delete('/api/userProfile/', verifyToken, verifyAdmin, async (req, res) => {
