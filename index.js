@@ -287,6 +287,43 @@ app.get('/api/plans', async (req, res) => {
    res.json(result)
 })
 
+// subscription by admin
+app.get('/api/subscriptions', verifyToken, verifyAdmin, async (req, res) => {
+   console.log(req.query, 'search params') // ক্লায়েন্ট সাইড থেকে আসা সার্চ অবজেক্ট কুয়েরির মধ্যে সেট করা হয়েছিল, সেটা এখান থেকে দেখা যাচ্ছে।
+
+     const page = req.query.page || 1 // পেজ নাম্বার যেটা এসেছে নিয়ে নিলাম
+    const size = 6// প্রতি পেজে কতগুলো ডাটা দেখাব ঠিক করে দিচ্ছি
+console.log(req.query, 'query')
+
+
+  // অ্যাগ্রিগেশন পাইপলাইন দিয়ে মোট রেভিনিউ হিসাব করা
+    const revenueResult = await subscriptionCollection.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$amount" } // amount ফিল্ডের সব সংখ্যার যোগফল
+        }
+      }
+    ]).toArray()
+
+    // যদি কোনো ডাটা না থাকে তাহলে রেভিনিউ ০ হবে
+    const revenue = revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0
+
+  const total = await subscriptionCollection.countDocuments()
+  const skipCount = (page - 1) * size // প্রতি পেজে কয়টি ডাটা বাদ দিবে সেই ফর্মুলা
+  const cursor = subscriptionCollection.find().skip(skipCount).limit(size) 
+  const result = await cursor.toArray()
+  res.json({
+    total,
+    result,
+    size,
+    page,
+    revenue
+  })
+})
+
+
+
 
 
 
@@ -327,29 +364,39 @@ app.post('/api/applications', async (req, res) => {
       res.json({ insertedId: result.insertedId.toString() })
 } )
 
+// subscriptions data posting
+ app.post('/api/subscription', async (req, res) => {
+  const data = req.body;
+  const subInfo = {
+    ...data,
+    createdAt: new Date()
+  };
 
-  // subscription handle
-  app.post('/api/subscription', async (req, res) => {
-    const data = req.body;
-    const subInfo = {
-      ...data,
-      createdAt: new Date()
-    }
-    const result = await subscriptionCollection.insertOne(subInfo)
+  const query = {
+    customerEmail: data.customerEmail,
+    planId: data.planId
+  };
+
+  const isAlreadyAdded = await subscriptionCollection.findOne(query);
+
+  if (isAlreadyAdded) {
+    // already subscribed, কিছুই না করে existing data ফেরত পাঠাও
+    return res.json({ alreadyExists: true });
+  }
+
+  const result = await subscriptionCollection.insertOne(subInfo);
 
 
-    // update user data
-    const filter = {email: data.email}
 
-    const updateDocument = {
-      $set: {
-        plan: data.planId
-      }
-    }
-    const updateResult = userCollection.updateOne(filter, updateDocument)
 
-    res.json(updateResult)
-  })
+  const filter = { email: data.customerEmail }; // consistent field ইউজ করলাম
+  const updateDocument = {
+    $set: { plan: data.planId }
+  };
+  const updateResult = await userCollection.updateOne(filter, updateDocument);
+
+  res.json(updateResult);
+});
 
 
 
